@@ -21,7 +21,7 @@
 //! `CFLAGS_WITH_MACROS` and `INCLUDES`; both need to be passed in to the Rust
 //! build system as a `RIOT_CFLAGS` environment variable.
 //!
-//! In addition, riot-sys also needs to know the C compiler to properly expand the
+//! In addition, riot-sys for some time needed to know the C compiler to properly expand the
 //! header files before transpilation; that information is passed in `RIOT_CC`.
 //!
 //! When using riot-sys, it is usually easiest to run from a target within the Make
@@ -41,6 +41,7 @@
 //! The `RIOT_CC` and `RIOT_CFLAGS` are made available to dependent modules through
 //! Cargo; see [riot-wrappers]'s build.sh for an example.
 //!
+//! ## Transition to compile-commands
 //!
 //! As an alternative to passing `RIOT_CFLAGS` and `RIOT_CC`, the path to a
 //! compile-commands.json file can be passed in `RIOT_COMPILE_COMMANDS_JSON`, with
@@ -49,6 +50,11 @@
 //! compiler is used. Even when this alternative is used, the extracted CC and CFLAGS are still
 //! passed down to dependent crates as they were before. (The passed down CC will just always be
 //! clang).
+//!
+//! In the course of this transition, workarounds for GCC CFLAGS have been removed from riot-sys.
+//! Thus, you'll either have to pick `TOOLCHAIN=llvm` for thw whole build, or use the
+//! `RIOT_COMPILE_COMMANDS_JSON` mechanism (with a recent enough RIOT version to support it) that
+//! produces working CFLAGS even when GCC is used as the main C compiler.
 //!
 //! ## Extension
 //!
