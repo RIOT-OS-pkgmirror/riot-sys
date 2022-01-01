@@ -132,6 +132,19 @@ fn main() {
         ("STATUS_NOT_FOUND", "thread_status_t"),
     ];
 
+    // These macros are otherwise inaccessible through Rust.
+    //
+    // These get placed in a C array in C2Rust transpilation; that array is later made `const`
+    // instead, and the no_mangle is removed. Thus, they behave in the same way in Rust as they
+    // did in C: any use is inlined directly (just with the added benefit of also allowing array
+    // access).
+    let macroarrays = [
+        ("BTN{}_PIN", "gpio_t"),
+        ("BTN{}_MODE", "gpio_direction_t"),
+        // Not doing the same with the LED because there the missing direction information is even
+        // worse
+    ];
+
     let mut c_code = String::new();
     std::fs::File::open("riot-c2rust.h")
         .expect("Failed to open riot-c2rust.h")
@@ -161,6 +174,27 @@ fn main() {
             macro_name = macro_name,
         )
         .unwrap();
+    }
+
+    for (macro_name, type_name) in macroarrays.iter() {
+        writeln!(
+            c_code,
+            "const {type_name} {macro_generic_name}[] = {{",
+            type_name = type_name,
+            macro_generic_name = macro_name.replace("{}", "n"),
+        )
+        .unwrap();
+        for i in 0..8 {
+            writeln!(
+                c_code,
+                "#ifdef {macro_name}
+                {macro_name},
+                #endif",
+                macro_name = macro_name.replace("{}", &format!("{}", i)),
+            )
+            .unwrap();
+        }
+        writeln!(c_code, "}}",).unwrap();
     }
 
     let mut outfile =
@@ -343,6 +377,14 @@ fn main() {
     }
 
     rustcode = rustcode_functionsreplaced;
+
+    for (macro_name, type_name) in macroarrays.iter() {
+        let macro_generic_name = macro_name.replace("{}", "n");
+        rustcode = rustcode.replace(
+            &format!("#[no_mangle]\npub static mut {}", macro_generic_name),
+            &format!("pub const {}", macro_generic_name),
+        );
+    }
 
     let output_replaced = out_path.join("riot_c2rust_replaced.rs");
     std::fs::File::create(output_replaced)
